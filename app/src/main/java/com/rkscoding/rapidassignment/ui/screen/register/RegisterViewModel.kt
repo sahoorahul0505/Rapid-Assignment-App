@@ -63,7 +63,9 @@ class RegisterViewModel @Inject constructor(private val repository: UserReposito
                     _registerUiEvent.emit(RegisterUiEvent.ShowSnackBar(result.message))
                 }
 
-                else -> Unit
+                is Resource.Loading -> {
+                    _registerState.value = RegisterState.Loading
+                }
             }
         }
     }

@@ -1,11 +1,15 @@
 package com.rkscoding.rapidassignment.ui.screen.register
 
 import android.util.Patterns
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rkscoding.rapidassignment.data.common.Resource
-import com.rkscoding.rapidassignment.data.model.request.RegisterRequest
-import com.rkscoding.rapidassignment.data.reposotory.UserRepository
+import com.rkscoding.rapidassignment.data.common.BaseViewModel
+import com.rkscoding.rapidassignment.data.common.UiEvent
+import com.rkscoding.rapidassignment.data.common.UiState
+import com.rkscoding.rapidassignment.data.remote.dto.request.OtpRequest
+import com.rkscoding.rapidassignment.data.remote.dto.request.UserRegisterRequest
+import com.rkscoding.rapidassignment.data.remote.dto.response.SessionResponse
+import com.rkscoding.rapidassignment.data.remote.reposotory.UserAuthRepository
+import com.rkscoding.rapidassignment.data.remote.session.SessionToken
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,19 +19,68 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class RegisterViewModel @Inject constructor(private val repository: UserRepository) : ViewModel() {
-
+class RegisterViewModel @Inject constructor(private val repository: UserAuthRepository, private val session : SessionToken) : BaseViewModel() {
     private val _formState = MutableStateFlow(RegisterFormState())
     val formState = _formState.asStateFlow()
 
-    private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
-    val registerState = _registerState.asStateFlow()
+    private val _registerUiState = MutableStateFlow<UiState<SessionResponse>>(UiState.Idle)
+    val registerUiState = _registerUiState.asStateFlow()
 
-    private val _registerUiEvent = MutableSharedFlow<RegisterUiEvent>()
-    val registerUiEvent = _registerUiEvent.asSharedFlow()
+    private val _otpUiState = MutableStateFlow<UiState<String>>(UiState.Idle)
+    val otpUiState = _otpUiState.asStateFlow()
+
+    private val _navEvent = MutableSharedFlow<RegisterNavigationEvent>(replay = 1)
+    val navEvent = _navEvent.asSharedFlow()
+
 
     fun onFormChange(updated: RegisterFormState) {
         _formState.value = updated
+    }
+
+    fun onLoginClicked(){
+        viewModelScope.launch {
+            _navEvent.emit(RegisterNavigationEvent.NavigateToLogin)
+        }
+    }
+
+    fun onSendOtpClicked() {
+        val currentForm = _formState.value
+
+        viewModelScope.launch {
+            when {
+                currentForm.email.isBlank() || currentForm.name.isBlank()-> {
+                    sendUiEvent(
+                        event = UiEvent.ShowSnackBar("Name and email required, Please fill name and email."),
+                        scoped = this
+                    )
+                    return@launch
+                }
+
+                Patterns.EMAIL_ADDRESS.matcher(_formState.value.email).matches().not() ->{
+                    sendUiEvent(
+                        event = UiEvent.ShowSnackBar("Invalid email address"),
+                        scoped = this
+                    )
+                    return@launch
+                }
+            }
+
+            _otpUiState.value = UiState.Loading
+            try {
+                val result = repository.sendOtpForRegistration(
+                    OtpRequest(
+                        email = currentForm.email,
+                        name = currentForm.name,
+                    )
+                )
+                _otpUiState.value = UiState.Success(result.message)
+                sendUiEvent(event = UiEvent.ShowSnackBar(result.message), scoped = this)
+                startCountdown()
+            }catch (e : Exception) {
+                _otpUiState.value = UiState.Error(e.message ?: "Something went wrong")
+                sendUiEvent(event = UiEvent.ShowSnackBar(e.message ?: "Something went wrong"), scoped = this)
+            }
+        }
     }
 
     fun onRegisterClicked() {
@@ -35,45 +88,57 @@ class RegisterViewModel @Inject constructor(private val repository: UserReposito
 
         viewModelScope.launch {
             // Validate the form before making the API call
-            val validationError = validateForm(currentForm)
-            if (validationError != null) {
-                _registerUiEvent.emit(RegisterUiEvent.ShowSnackBar(validationError))
+            val validationFormError = validateForm(currentForm)
+            if (validationFormError != null) {
+                sendUiEvent(event = UiEvent.ShowSnackBar(validationFormError), scoped = this)
                 return@launch
             }
 
-            _registerState.value = RegisterState.Loading
-            val result = repository.register(
-                RegisterRequest(
-                    email = currentForm.email,
-                    password = currentForm.password,
-                    name = currentForm.name,
-                    rollNumber = currentForm.rollNumber,
-                    branch = currentForm.branch
+
+            _registerUiState.value = UiState.Loading
+            try {
+                val result = repository.register(
+                    UserRegisterRequest(
+                        email = currentForm.email,
+                        password = currentForm.password,
+                        name = currentForm.name,
+                        rollNumber = currentForm.rollNumber,
+                        branch = currentForm.branch,
+                    ),
+                    otp = currentForm.otp
                 )
-            )
-
-            when (result) {
-                is Resource.Success -> {
-                    _registerState.value = RegisterState.Success(result.data.message)
-                    _registerUiEvent.emit(RegisterUiEvent.NavigateToLogin)
+                val token = result.data?.token
+                if (token != null){
+                    _registerUiState.value = UiState.Success(result.data)
+                    session.storeToken(token)
+                    sendUiEvent(event = UiEvent.ShowSnackBar(message = result.message), scoped = this)
+                    _navEvent.emit(RegisterNavigationEvent.NavigateToHome)
+                }else{
+                    _registerUiState.value = UiState.Error("Missing Token from server")
+                    _navEvent.emit(RegisterNavigationEvent.NavigateToLogin)
+                    sendUiEvent(event = UiEvent.ShowSnackBar(message = "Missing Token from server. \n Please try to Login."), scoped = this)
+                    return@launch
                 }
 
-                is Resource.Error -> {
-                    _registerState.value = RegisterState.Error(result.message)
-                    _registerUiEvent.emit(RegisterUiEvent.ShowSnackBar(result.message))
-                }
 
-                is Resource.Loading -> {
-                    _registerState.value = RegisterState.Loading
-                }
+
+            }catch (e : Exception){
+                _registerUiState.value = UiState.Error(message = e.localizedMessage ?: "Unknown Error")
+                sendUiEvent(event = UiEvent.ShowSnackBar(message = e.message ?: "Unknown Error"), scoped = this)
             }
         }
     }
 
+    sealed class RegisterNavigationEvent {
+        object NavigateToHome : RegisterNavigationEvent()
+        object NavigateToLogin : RegisterNavigationEvent()
+    }
+
+    // Form validator
     private fun validateForm(form: RegisterFormState): String? {
         return when {
             // Check if any field is empty
-             form.email.isBlank() || form.password.isBlank() || form.confirmPassword.isBlank() || form.name.isBlank()
+            form.email.isBlank() || form.password.isBlank() || form.confirmPassword.isBlank() || form.name.isBlank()
                     || form.rollNumber.isBlank() || form.branch.isBlank() -> {
                 "All fields are required"
             }
@@ -88,8 +153,14 @@ class RegisterViewModel @Inject constructor(private val repository: UserReposito
                 "Please enter a valid email address"
             }
 
+            form.otp.isBlank() -> {
+                "Please enter OTP"
+            }
+
             else -> null
         }
+
+
     }
 
     data class RegisterFormState(
@@ -98,18 +169,8 @@ class RegisterViewModel @Inject constructor(private val repository: UserReposito
         val confirmPassword: String = "",
         val name: String = "",
         val rollNumber: String = "",
-        val branch: String = ""
+        val branch: String = "",
+        val otp: String = ""
     )
-
-    sealed class RegisterState {
-        object Idle : RegisterState()
-        object Loading : RegisterState()
-        data class Success(val message: String) : RegisterState()
-        data class Error(val message: String) : RegisterState()
-    }
-
-    sealed class RegisterUiEvent {
-        object NavigateToLogin : RegisterUiEvent()
-        data class ShowSnackBar(val message: String) : RegisterUiEvent()
-    }
 }
+

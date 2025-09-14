@@ -23,9 +23,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             RapidAssignmentTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    RegisterScreen(modifier = Modifier.padding(innerPadding))
-                }
+                    RegisterScreen()
             }
         }
     }

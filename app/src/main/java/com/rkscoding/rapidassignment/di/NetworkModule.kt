@@ -1,9 +1,13 @@
 package com.rkscoding.rapidassignment.di
 
 import android.content.Context
-import com.rkscoding.rapidassignment.data.remote.api.ApiService
+import com.rkscoding.rapidassignment.data.remote.api.AuthApiService
+import com.rkscoding.rapidassignment.data.remote.api.QuizApiService
+import com.rkscoding.rapidassignment.data.remote.api.UserProfileApiService
+import com.rkscoding.rapidassignment.data.remote.reposotory.QuizRepository
 import com.rkscoding.rapidassignment.data.remote.session.SessionToken
-import com.rkscoding.rapidassignment.data.reposotory.UserRepository
+import com.rkscoding.rapidassignment.data.remote.reposotory.UserAuthRepository
+import com.rkscoding.rapidassignment.data.remote.reposotory.UserProfileRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -26,7 +30,7 @@ object NetworkModule {
         val client = OkHttpClient.Builder()
         // interceptor to automatically include an Authorization header with each request
         client.addInterceptor { chain ->
-            val token = sessionToken.getToken() ?: "" // fetch from DataStore or AuthRepository
+            val token = sessionToken.getToken() ?: ""
             val request = chain.request().newBuilder()
                 // token from session storage to the request headers
                 .addHeader("X-Session-token", token)
@@ -59,14 +63,38 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideApiService(retrofit: Retrofit): ApiService {
-        return retrofit.create(ApiService::class.java)
+    fun provideAuthApiService(retrofit: Retrofit): AuthApiService {
+        return retrofit.create(AuthApiService::class.java)
     }
 
     @Provides
     @Singleton
-    fun provideRepository(apiService: ApiService): UserRepository {
-        return UserRepository(apiService)
+    fun provideAuthRepository(apiService: AuthApiService): UserAuthRepository {
+        return UserAuthRepository(apiService)
+    }
+
+    @Provides
+    @Singleton
+    fun provideQuizApiService(retrofit: Retrofit) : QuizApiService {
+        return retrofit.create(QuizApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideQuizRepository(apiService: QuizApiService) : QuizRepository {
+        return QuizRepository(apiService)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserProfileApiService(retrofit: Retrofit) : UserProfileApiService {
+        return retrofit.create(UserProfileApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserProfileRepository(apiService: UserProfileApiService) : UserProfileRepository {
+        return UserProfileRepository(apiService)
     }
 
     @Provides

@@ -5,5 +5,6 @@ data class UserRegisterRequest(
     val email: String,
     val password: String,
     val rollNumber: String,
-    val branch: String
+    val branch: String,
+    val otp : String
 )

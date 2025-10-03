@@ -3,8 +3,10 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 
+    id("kotlin-parcelize")
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
+    kotlin("plugin.serialization") version "2.2.10"
 
 }
 
@@ -47,7 +49,8 @@ dependencies {
     ksp("com.google.dagger:hilt-android-compiler:2.56.2")
 
     //navigation and state-management
-    implementation("androidx.navigation:navigation-compose:2.7.6")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("androidx.navigation:navigation-compose:2.9.3")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.1")
 
@@ -61,6 +64,9 @@ dependencies {
     // gson converter
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // shimmer effect
+    implementation("com.valentinilk.shimmer:compose-shimmer:1.3.3")
 
 
     implementation(libs.androidx.core.ktx)

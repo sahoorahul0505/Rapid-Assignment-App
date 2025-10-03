@@ -19,4 +19,10 @@ class SessionToken(context: Context) {
         }
         return sharedPreferences.getString("token", null)
     }
+
+    fun clearSessionToken() {
+        sharedPreferences.edit {
+            clear()
+        }
+    }
 }

@@ -6,7 +6,7 @@ import com.rkscoding.rapidassignment.data.remote.api.QuizApiService
 import com.rkscoding.rapidassignment.data.remote.api.UserProfileApiService
 import com.rkscoding.rapidassignment.data.remote.reposotory.QuizRepository
 import com.rkscoding.rapidassignment.data.remote.session.SessionToken
-import com.rkscoding.rapidassignment.data.remote.reposotory.UserAuthRepository
+import com.rkscoding.rapidassignment.data.remote.reposotory.UsersAuthRepository
 import com.rkscoding.rapidassignment.data.remote.reposotory.UserProfileRepository
 import dagger.Module
 import dagger.Provides
@@ -33,7 +33,7 @@ object NetworkModule {
             val token = sessionToken.getToken() ?: ""
             val request = chain.request().newBuilder()
                 // token from session storage to the request headers
-                .addHeader("X-Session-token", token)
+                .addHeader("X-Session-Token", token)
                 .build()
             // Proceed with the request using the modified request
             chain.proceed(request)
@@ -53,8 +53,9 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(client: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://127.0.0.1:8080/")
-//            .baseUrl("http://10.0.2.2:8080")
+//            .baseUrl("http://10.162.73.186:8080/")
+//            .baseUrl("http://127.0.0.1:8080/")
+            .baseUrl("http://10.110.44.186:8080")
 //            .baseUrl("http://192.168.156.186:8080")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
@@ -69,8 +70,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideAuthRepository(apiService: AuthApiService): UserAuthRepository {
-        return UserAuthRepository(apiService)
+    fun provideAuthRepository(apiService: AuthApiService): UsersAuthRepository {
+        return UsersAuthRepository(apiService)
     }
 
     @Provides

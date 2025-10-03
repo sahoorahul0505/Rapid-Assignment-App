@@ -3,17 +3,18 @@ package com.rkscoding.rapidassignment.data.remote.reposotory
 import com.rkscoding.rapidassignment.data.common.ApiResponse
 import com.rkscoding.rapidassignment.data.common.toParseError
 import com.rkscoding.rapidassignment.data.remote.api.QuizApiService
-import com.rkscoding.rapidassignment.data.remote.dto.request.GetQuestionsRequest
-import com.rkscoding.rapidassignment.data.remote.dto.request.QuizSubmissionRequest
+import com.rkscoding.rapidassignment.data.remote.dto.request.AnswerRequest
 import com.rkscoding.rapidassignment.data.remote.dto.response.QuizSubmitResponse
-import com.rkscoding.rapidassignment.data.remote.dto.response.UserQuestionResponse
+import com.rkscoding.rapidassignment.data.remote.dto.response.UserQuizQuestionResponse
+import com.rkscoding.rapidassignment.data.remote.dto.response.UsersQuizDetailsResponse
 import retrofit2.HttpException
 import javax.inject.Inject
 
 class QuizRepository @Inject constructor(private val apiService: QuizApiService) {
-    suspend fun getAllQuestionsForUser(request: GetQuestionsRequest): ApiResponse<List<UserQuestionResponse>> {
+
+    suspend fun getQuizDetailsForUser(quizCode : String) : ApiResponse<UsersQuizDetailsResponse> {
         return try {
-            apiService.getAllQuestionsForUser(request)
+            apiService.getQuizForUser(quizCode)
         }catch (ex : HttpException){
             throw Exception(ex.toParseError())
         }catch (e : Exception){
@@ -21,9 +22,29 @@ class QuizRepository @Inject constructor(private val apiService: QuizApiService)
         }
     }
 
-    suspend fun submitQuizForUser(request : QuizSubmissionRequest) : ApiResponse<QuizSubmitResponse> {
+    suspend fun getQuizQuestionsForUser(quizCode : String): ApiResponse<List<UserQuizQuestionResponse>> {
         return try {
-            apiService.submitQuizForUser(request)
+            apiService.getQuizQuestionsForUser(quizCode)
+        }catch (ex : HttpException){
+            throw Exception(ex.toParseError())
+        }catch (e : Exception){
+            throw Exception(e.message ?: "Something went wrong")
+        }
+    }
+
+    suspend fun submitQuizForUser(quizCode: String, request : List<AnswerRequest>) : ApiResponse<QuizSubmitResponse> {
+        return try {
+            apiService.submitQuizForUser(quizCode, request)
+        }catch (ex : HttpException){
+            throw Exception(ex.toParseError())
+        }catch (e : Exception){
+            throw Exception(e.message ?: "Something went wrong")
+        }
+    }
+
+    suspend fun getAllSubmissions() : ApiResponse<List<QuizSubmitResponse>> {
+        return try {
+            apiService.getAllSubmissionsForUser()
         }catch (ex : HttpException){
             throw Exception(ex.toParseError())
         }catch (e : Exception){
